@@ -11,6 +11,7 @@ import afctevaluator.mosel.concrete_fact_systems.LengthModFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.ModularCountFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.PrefixFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.SuffixFactSystem;
+import afctevaluator.mosel.concrete_fact_systems.SumModFactSystem;
 import afctevaluator.mosel.fact_system_tree_structure.BooleanOperator;
 import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
 import afctevaluator.mosel.fact_system_tree_structure.ProductFactSystem;
@@ -49,6 +50,22 @@ public final class MoselVerifierTestMain {
                 new ProductFactSystem<>(new PrefixFactSystem("a"), new CountAtLeastFactSystem("b", 1), BooleanOperator.AND),
                 Map.of());
 
+        runCase("Sum of the digits is divisible by 4: correct DFA and fully consistent",
+            sumModDfa(),
+            new SumModFactSystem(0, 4),
+            Map.of()
+        );
+
+        runCase("Sum of the digits is divisible by 4: incorrect DFA and fully conflicted",
+            badSumModDfa(),
+            new SumModFactSystem(0, 4),
+            Map.of("q0", StateDiagnosis.CONFLICTED,
+                "q1", StateDiagnosis.CONFLICTED,
+                "q2", StateDiagnosis.CONFLICTED,
+                "q3", StateDiagnosis.CONFLICTED
+            )
+        );
+
         Set<Character> ab = Set.of('a', 'b');
         runConstructionCase("Construct: begWt 'ab'", new PrefixFactSystem("ab"), ab);
         runConstructionCase("Construct: endWt 'ab'", new SuffixFactSystem("ab"), ab);
@@ -59,6 +76,8 @@ public final class MoselVerifierTestMain {
         runConstructionCase("Construct: |s| mod 4 = 2", new LengthModFactSystem(4, 2), ab);
         runConstructionCase("Construct: begWt 'a' AND |indOf 'b'| >= 1",
                 new ProductFactSystem<>(new PrefixFactSystem("a"), new CountAtLeastFactSystem("b", 1), BooleanOperator.AND), ab);
+        Set<Character> _012 = Set.of('0', '1', '2');
+        runConstructionCase("Construct: sum % 0 mod 4", new SumModFactSystem(0, 4), _012);
     }
 
     /**
@@ -164,6 +183,52 @@ public final class MoselVerifierTestMain {
         dfa.addTransition(new FSATransition(q2, q2, "b"));
         dfa.addTransition(new FSATransition(fail, fail, "a"));
         dfa.addTransition(new FSATransition(fail, fail, "b"));
+        return dfa;
+    }
+
+    private static FiniteStateAutomaton sumModDfa() {
+        FiniteStateAutomaton dfa = new FiniteStateAutomaton();
+        State q0 = newState(dfa, "q0", 0, 0);
+        State q1 = newState(dfa, "q1", 100, 0);
+        State q2 = newState(dfa, "q2", 100, 100);
+        State q3 = newState(dfa, "q3", 0, 100);
+        dfa.setInitialState(q0);
+        dfa.addFinalState(q0);
+        dfa.addTransition(new FSATransition(q0, q0, "0"));
+        dfa.addTransition(new FSATransition(q1, q1, "0"));
+        dfa.addTransition(new FSATransition(q2, q2, "0"));
+        dfa.addTransition(new FSATransition(q3, q3, "0"));
+        dfa.addTransition(new FSATransition(q0, q1, "1"));
+        dfa.addTransition(new FSATransition(q1, q2, "1"));
+        dfa.addTransition(new FSATransition(q2, q3, "1"));
+        dfa.addTransition(new FSATransition(q3, q0, "1"));
+        dfa.addTransition(new FSATransition(q0, q2, "2"));
+        dfa.addTransition(new FSATransition(q1, q3, "2"));
+        dfa.addTransition(new FSATransition(q2, q0, "2"));
+        dfa.addTransition(new FSATransition(q3, q1, "2"));
+        return dfa;
+    }
+
+    private static FiniteStateAutomaton badSumModDfa() {
+        FiniteStateAutomaton dfa = new FiniteStateAutomaton();
+        State q0 = newState(dfa, "q0", 0, 0);
+        State q1 = newState(dfa, "q1", 100, 0);
+        State q2 = newState(dfa, "q2", 100, 100);
+        State q3 = newState(dfa, "q3", 0, 100);
+        dfa.setInitialState(q0);
+        dfa.addFinalState(q0);
+        dfa.addTransition(new FSATransition(q0, q1, "0"));
+        dfa.addTransition(new FSATransition(q1, q1, "0"));
+        dfa.addTransition(new FSATransition(q2, q2, "0"));
+        dfa.addTransition(new FSATransition(q3, q3, "0"));
+        dfa.addTransition(new FSATransition(q0, q1, "1"));
+        dfa.addTransition(new FSATransition(q1, q2, "1"));
+        dfa.addTransition(new FSATransition(q2, q3, "1"));
+        dfa.addTransition(new FSATransition(q3, q0, "1"));
+        dfa.addTransition(new FSATransition(q0, q2, "2"));
+        dfa.addTransition(new FSATransition(q1, q3, "2"));
+        dfa.addTransition(new FSATransition(q2, q0, "2"));
+        dfa.addTransition(new FSATransition(q3, q1, "2"));
         return dfa;
     }
 }
