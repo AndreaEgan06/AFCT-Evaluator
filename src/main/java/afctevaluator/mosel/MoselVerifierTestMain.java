@@ -6,6 +6,7 @@ import automata.fsa.FiniteStateAutomaton;
 
 import java.awt.Point;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Standalone smoke test for the fact-tracking verifier, in the same spirit as {@code TestMain}:
@@ -33,6 +34,27 @@ public final class MoselVerifierTestMain {
                 compoundDfa(),
                 new ProductFactSystem<>(new PrefixFactSystem("a"), new CountAtLeastFactSystem("b", 1), BooleanOperator.AND),
                 Map.of());
+
+        Set<Character> ab = Set.of('a', 'b');
+        runConstructionCase("Construct: begWt 'ab'", new PrefixFactSystem("ab"), ab);
+        runConstructionCase("Construct: endWt 'ab'", new SuffixFactSystem("ab"), ab);
+        runConstructionCase("Construct: |indOf 'ab'| >= 2", new CountAtLeastFactSystem("ab", 2), ab);
+        runConstructionCase("Construct: |indOf 'a'| = 2", new CountExactlyFactSystem("a", 2), ab);
+        runConstructionCase("Construct: |indOf 'a'| <= 2", new CountAtMostFactSystem("a", 2), ab);
+        runConstructionCase("Construct: |indOf 'a'| mod 3 = 1", new ModularCountFactSystem("a", 3, 1), ab);
+        runConstructionCase("Construct: |s| mod 4 = 2", new LengthModFactSystem(4, 2), ab);
+        runConstructionCase("Construct: begWt 'a' AND |indOf 'b'| >= 1",
+                new ProductFactSystem<>(new PrefixFactSystem("a"), new CountAtLeastFactSystem("b", 1), BooleanOperator.AND), ab);
+    }
+
+    /**
+     * Builds the canonical DFA for {@code system} via {@link DfaFactConstructor}, then feeds it
+     * back through {@link DfaFactVerifier}: every reachable state must come back CONSISTENT,
+     * since the constructor places each state's facts and acceptance in lockstep by definition.
+     */
+    private static <D> void runConstructionCase(String name, FactTrackingSystem<D> system, Set<Character> alphabet) {
+        FiniteStateAutomaton dfa = DfaFactConstructor.build(system, alphabet);
+        runCase(name, dfa, system, Map.of());
     }
 
     private static <D> void runCase(String name, FiniteStateAutomaton dfa, FactTrackingSystem<D> system,
