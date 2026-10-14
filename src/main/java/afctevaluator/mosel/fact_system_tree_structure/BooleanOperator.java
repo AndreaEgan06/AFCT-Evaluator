@@ -1,4 +1,4 @@
-package afctevaluator.mosel;
+package afctevaluator.mosel.fact_system_tree_structure;
 
 public enum BooleanOperator {
     AND {

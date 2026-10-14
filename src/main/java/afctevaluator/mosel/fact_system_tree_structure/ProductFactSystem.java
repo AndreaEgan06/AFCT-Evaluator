@@ -1,4 +1,4 @@
-package afctevaluator.mosel;
+package afctevaluator.mosel.fact_system_tree_structure;
 
 /**
  * Combines two fact systems into one tracking the tuple of both facts, for a compound

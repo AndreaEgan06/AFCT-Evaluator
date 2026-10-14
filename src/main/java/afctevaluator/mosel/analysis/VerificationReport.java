@@ -1,4 +1,4 @@
-package afctevaluator.mosel;
+package afctevaluator.mosel.analysis;
 
 import automata.State;
 

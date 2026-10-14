@@ -1,4 +1,4 @@
-package afctevaluator.mosel;
+package afctevaluator.mosel.concrete_fact_systems;
 
 /**
  * The Knuth-Morris-Pratt failure function and automaton transition for a fixed pattern,

@@ -1,4 +1,4 @@
-package afctevaluator.mosel;
+package afctevaluator.mosel.analysis;
 
 import automata.State;
 import automata.Transition;
@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
 
 /** Annotates every state of a DFA with its reachable facts under a condition, then diagnoses each state's accept/reject designation against those facts. */
 public final class DfaFactVerifier {
