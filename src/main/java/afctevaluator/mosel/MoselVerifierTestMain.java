@@ -1,5 +1,8 @@
 package afctevaluator.mosel;
 
+import afctevaluator.mosel.abstract_fact_system.BooleanOperator;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.ProductFactSystem;
 import afctevaluator.mosel.analysis.DfaFactConstructor;
 import afctevaluator.mosel.analysis.DfaFactVerifier;
 import afctevaluator.mosel.analysis.StateDiagnosis;
@@ -12,9 +15,6 @@ import afctevaluator.mosel.concrete_fact_systems.ModularCountFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.PrefixFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.SuffixFactSystem;
 import afctevaluator.mosel.concrete_fact_systems.SumModFactSystem;
-import afctevaluator.mosel.fact_system_tree_structure.BooleanOperator;
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
-import afctevaluator.mosel.fact_system_tree_structure.ProductFactSystem;
 import automata.State;
 import automata.fsa.FSATransition;
 import automata.fsa.FiniteStateAutomaton;

@@ -1,4 +1,4 @@
-package afctevaluator.mosel.fact_system_tree_structure;
+package afctevaluator.mosel.abstract_fact_system;
 
 /**
  * A fact-tracking system for a single condition C: a finite

@@ -1,7 +1,7 @@
 package afctevaluator.mosel.concrete_fact_systems;
 
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
-import afctevaluator.mosel.fact_system_tree_structure.Pair;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.Pair;
 
 /**
  * Shared machinery for |indOf w| {@literal >=/=/<=} k: a fact is (occurrence count, KMP

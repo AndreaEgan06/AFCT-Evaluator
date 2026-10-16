@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
 
 /** Annotates every state of a DFA with its reachable facts under a condition, then diagnoses each state's accept/reject designation against those facts. */
 public final class DfaFactVerifier {
