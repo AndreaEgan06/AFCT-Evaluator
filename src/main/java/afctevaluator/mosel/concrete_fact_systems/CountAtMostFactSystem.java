@@ -1,6 +1,6 @@
 package afctevaluator.mosel.concrete_fact_systems;
 
-import afctevaluator.mosel.fact_system_tree_structure.Pair;
+import afctevaluator.mosel.abstract_fact_system.Pair;
 
 /** |indOf w| &lt;= k. */
 public final class CountAtMostFactSystem extends AbstractCountFactSystem {

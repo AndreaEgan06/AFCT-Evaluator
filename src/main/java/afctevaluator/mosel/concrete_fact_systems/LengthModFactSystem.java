@@ -1,6 +1,6 @@
 package afctevaluator.mosel.concrete_fact_systems;
 
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
 
 /** |s| mod m = r. Every transition advances the fact by one, regardless of the symbol read. */
 public final class LengthModFactSystem implements FactTrackingSystem<Integer> {

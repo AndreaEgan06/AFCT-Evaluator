@@ -1,7 +1,7 @@
 package afctevaluator.mosel.concrete_fact_systems;
 
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
-import afctevaluator.mosel.fact_system_tree_structure.Pair;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.Pair;
 
 /** |indOf w| mod m = r. Fact is (occurrence count mod m, KMP progress toward the next occurrence of w). */
 public final class ModularCountFactSystem implements FactTrackingSystem<Pair<Integer, Integer>> {

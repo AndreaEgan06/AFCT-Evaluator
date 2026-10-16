@@ -1,6 +1,6 @@
 package afctevaluator.mosel.concrete_fact_systems;
 
-import afctevaluator.mosel.fact_system_tree_structure.FactTrackingSystem;
+import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
 
 /** the sum of the digits in the string is congruent to r mod m */
 public final class SumModFactSystem implements FactTrackingSystem<Integer> {
