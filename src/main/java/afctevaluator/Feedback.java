@@ -1,5 +1,8 @@
 package afctevaluator;
 
+import afctevaluator.mosel.grading.MoselAnalysis;
+import com.google.gson.JsonObject;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +20,14 @@ public class Feedback {
     public ArrayList<String> errors;
     public String version = Feedback.class.getPackage().getImplementationVersion();
     public ArrayList<String> info;
+    // Set only when a grading config is given (--grading-config); Gson leaves null fields out of the JSON, so the
+    // output is unchanged for callers that do not pass one.
+    /** RUBRIC: the 0-1 score the rubric gave; the web app turns it into points. */
+    public Double score;
+    /** The MOSEL analysis of an FA submission. Not shown to students. */
+    public MoselAnalysis analysis;
+    /** RUBRIC: the rubric definition that produced {@link #score}. */
+    public JsonObject rubricApplied;
 
     /**
      * Constructor for Feedback.

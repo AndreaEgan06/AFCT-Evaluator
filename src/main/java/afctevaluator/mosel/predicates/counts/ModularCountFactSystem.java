@@ -1,17 +1,21 @@
-package afctevaluator.mosel.concrete_fact_systems;
+package afctevaluator.mosel.predicates.counts;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
-import afctevaluator.mosel.abstract_fact_system.Pair;
+import afctevaluator.mosel.core.Comparison;
+import afctevaluator.mosel.core.FactTrackingSystem;
+import afctevaluator.mosel.core.KmpTable;
+import afctevaluator.mosel.core.Pair;
 
-/** |indOf w| mod m = r. Fact is (occurrence count mod m, KMP progress toward the next occurrence of w). */
+/** |indOf w| mod m CMP r. Fact is (occurrence count mod m, KMP progress toward the next occurrence of w). */
 public final class ModularCountFactSystem implements FactTrackingSystem<Pair<Integer, Integer>> {
     private final KmpTable kmp;
     private final int m;
+    private final Comparison cmp;
     private final int r;
 
-    public ModularCountFactSystem(String w, int m, int r) {
+    public ModularCountFactSystem(String w, int m, Comparison cmp, int r) {
         this.kmp = new KmpTable(w);
         this.m = m;
+        this.cmp = cmp;
         this.r = r;
     }
 
@@ -33,6 +37,6 @@ public final class ModularCountFactSystem implements FactTrackingSystem<Pair<Int
 
     @Override
     public boolean isAccepting(Pair<Integer, Integer> fact) {
-        return fact.first() == r;
+        return cmp.test(fact.first(), r);
     }
 }

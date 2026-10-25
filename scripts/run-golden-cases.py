@@ -32,6 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "test" / "golden"
 CASES = GOLDEN / "cases"
+GRADING_CONFIGS = GOLDEN / "grading-configs"
 CFGANALYZER = ROOT / "bin" / "cfganalyzer"
 
 # Production kills an evaluation that runs long; a case that hangs should fail rather than
@@ -51,6 +52,47 @@ def type_args(case):
     if case["type"] == "PDA":
         return [str(case.get("maxStates", -1))]
     return []
+
+
+def grading_args(case):
+    """`--grading-config` for cases that test the MOSEL analysis and rubric score.
+
+    RUBRIC: golden cases carry their rubric in the grading config (see RUBRIC_LOCATIONS.md).
+    """
+    if "gradingConfig" not in case:
+        return []
+    return ["--grading-config", str(GRADING_CONFIGS / case["gradingConfig"])]
+
+
+def subset_mismatches(expected, actual, path="analysis"):
+    """Where `actual` differs from `expected`, looking only at the keys `expected` names."""
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return [f"{path}: expected an object, got {actual!r}"]
+        problems = []
+        for key, value in expected.items():
+            problems += subset_mismatches(value, actual.get(key), f"{path}.{key}")
+        return problems
+    return [] if expected == actual else [f"{path}: expected {expected!r}, got {actual!r}"]
+
+
+def grading_mismatches(case, feedback):
+    """Checks for the optional `expectScore`, `expectAnalysis` and `expectWarningContains` keys."""
+    problems = []
+    if "expectScore" in case and feedback.get("score") != case["expectScore"]:
+        problems.append(f'expected score={case["expectScore"]}, got {feedback.get("score")}')
+    if "expectAnalysis" in case:
+        if case["expectAnalysis"] is None:
+            if feedback.get("analysis") is not None:
+                problems.append("expected no analysis, but one was returned")
+        else:
+            problems += subset_mismatches(case["expectAnalysis"], feedback.get("analysis"))
+    wanted_warning = case.get("expectWarningContains")
+    if wanted_warning and not any(
+        wanted_warning.lower() in w.lower() for w in feedback.get("warnings", [])
+    ):
+        problems.append(f'expected a warning containing "{wanted_warning}"')
+    return problems
 
 
 def parse_feedback(stdout):
@@ -98,6 +140,7 @@ def main():
             "-jar",
             str(jar),
             "--json",
+            *grading_args(case),
             str(CASES / case["answer"]),
             str(CASES / case["submission"]),
             *type_args(case),
@@ -129,7 +172,11 @@ def main():
                     print(f"  FAIL  {name}")
                     continue
 
-            if feedback["correct"] == case["expectCorrect"]:
+            problems = grading_mismatches(case, feedback)
+            if problems:
+                failures.append(f"{name}\n        " + "\n        ".join(problems))
+                print(f"  FAIL  {name}")
+            elif feedback["correct"] == case["expectCorrect"]:
                 print(f'  ok    {name}  (correct={feedback["correct"]})')
             else:
                 failures.append(

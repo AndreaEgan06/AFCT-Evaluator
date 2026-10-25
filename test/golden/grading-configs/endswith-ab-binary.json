@@ -1,0 +1,2 @@
+{ "mosel": { "condition": { "kind": "endWt", "w": "ab" } },
+  "rubric": { "version": 1, "kind": "binary" } }

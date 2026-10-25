@@ -413,6 +413,211 @@
       "maxStates": 2,
       "expectCorrect": false,
       "expectErrorContains": "the maximum allowed is"
+    },
+    {
+      "name": "MOSEL (endWt ab): correct DFA is fully consistent and scores 1",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-solution.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": true,
+        "nondeterministic": false,
+        "trapAdded": false,
+        "minimalStates": 3,
+        "counts": {
+          "CONSISTENT": 3,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 0,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (endWt ab): incomplete DFA gets a trap state, which the analysis flags as conflicted",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-incomplete.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": false,
+      "expectScore": 0.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": true,
+        "trapAdded": true,
+        "analyzedStates": 4,
+        "counts": {
+          "CONSISTENT": 3,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 1,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (endWt ab): merging the after-a and after-ab states is a structural conflict",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-merged.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": false,
+      "expectScore": 0.0,
+      "expectAnalysis": {
+        "counts": {
+          "CONSISTENT": 1,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 1,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (endWt ab): a correct NFA is analysed as submitted; the guessing state is conflicted",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-nfa.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": {
+        "nondeterministic": true,
+        "trapAdded": false,
+        "counts": {
+          "CONSISTENT": 2,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 1,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (endWt ab): a multi-symbol label is read symbol by symbol rather than misread",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-multichar.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": {
+        "nondeterministic": true,
+        "counts": {
+          "CONSISTENT": 1,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 1,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (endWt ab): an NFA answer file is determinized to check the description, so it still matches",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-nfa.jff",
+      "submission": "mosel-endswith-ab-solution.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": true,
+        "nondeterministic": false
+      }
+    },
+    {
+      "name": "MOSEL: a description that does not match the answer file is flagged",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-merged.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "beginswith-ab-binary.json",
+      "expectCorrect": false,
+      "expectScore": 0.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": false
+      },
+      "expectWarningContains": "does not describe the same language"
+    },
+    {
+      "name": "Rubric: an unsupported rubric falls back to correct/incorrect instead of losing the grade",
+      "type": "FA",
+      "answer": "mosel-endswith-ab-solution.jff",
+      "submission": "mosel-endswith-ab-solution.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "endswith-ab-unknown-rubric.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectErrorContains": "rubric could not be applied"
+    },
+    {
+      "name": "MOSEL: the analysis is skipped for a non-FA problem, and the rubric still scores it",
+      "type": "RE",
+      "answer": "gs-re-endsb-solution.jff",
+      "submission": "gs-re-endsb-solution.jff",
+      "gradingConfig": "endswith-ab-binary.json",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": null
+    },
+    {
+      "name": "MOSEL (NOT endWt ab): the complement DFA is fully consistent",
+      "type": "FA",
+      "answer": "mosel-not-endswith-ab-solution.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "not-endswith-ab-binary.json",
+      "submission": "mosel-not-endswith-ab-solution.jff",
+      "expectCorrect": true,
+      "expectScore": 1.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": true,
+        "minimalStates": 3,
+        "counts": {
+          "CONSISTENT": 3,
+          "MISSING_ACCEPTANCE": 0,
+          "SPURIOUS_ACCEPTANCE": 0,
+          "CONFLICTED": 0,
+          "UNREACHABLE": 0
+        }
+      }
+    },
+    {
+      "name": "MOSEL (NOT endWt ab): the un-negated DFA has every state's acceptance backwards",
+      "type": "FA",
+      "answer": "mosel-not-endswith-ab-solution.jff",
+      "maxStates": -1,
+      "deterministic": false,
+      "gradingConfig": "not-endswith-ab-binary.json",
+      "submission": "mosel-endswith-ab-solution.jff",
+      "expectCorrect": false,
+      "expectScore": 0.0,
+      "expectAnalysis": {
+        "specMatchesAnswerKey": true,
+        "counts": {
+          "CONSISTENT": 0,
+          "MISSING_ACCEPTANCE": 2,
+          "SPURIOUS_ACCEPTANCE": 1,
+          "CONFLICTED": 0,
+          "UNREACHABLE": 0
+        }
+      }
     }
   ]
 }

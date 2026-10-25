@@ -40,6 +40,24 @@ For a file the evaluator should refuse rather than mark, add `expectErrorContain
 piece of the message it should give. That is what stops an unsupported machine being reported
 to a student as simply wrong.
 
+### MOSEL analysis and rubric cases
+<!-- RUBRIC: the rubric golden cases and their grading configs. -->
+
+A case can also pass a grading config (`--grading-config`) from `grading-configs/` and check
+what comes back beyond the verdict:
+
+```json
+{
+  "gradingConfig": "endswith-ab-binary.json",
+  "expectScore": 0.0,
+  "expectAnalysis": { "trapAdded": true, "counts": { "CONFLICTED": 1 } },
+  "expectWarningContains": "does not describe the same language"
+}
+```
+
+`expectAnalysis` only checks the keys it names; set it to `null` to assert that no analysis is
+returned. The `mosel-*` files in `cases/` are small hand-written automata for "ends with ab".
+
 Cases are worth adding whenever a grading bug is found: the case that reproduces it is the
 thing that stops it coming back.
 

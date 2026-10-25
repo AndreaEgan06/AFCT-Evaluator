@@ -12,20 +12,25 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.core.FactTrackingSystem;
 
-/** Annotates every state of a DFA with its reachable facts under a condition, then diagnoses each state's accept/reject designation against those facts. */
-public final class DfaFactVerifier {
-    private DfaFactVerifier() {
+/**
+ * Annotates every state of a finite automaton with its reachable facts under a condition, then diagnoses each state's accept/reject designation
+ * against those facts. The automaton may be nondeterministic: facts flow along every transition out of a state, a λ-transition (empty label)
+ * passes the origin's facts to the destination unchanged, and a multi-symbol label applies the transfer function once per symbol.
+ * A missing transition is invisible here, so a student submission should go through {@link AnalysisAutomatonBuilder} first.
+ */
+public final class FactVerifier {
+    private FactVerifier() {
     }
 
-    public static <D> VerificationReport<D> verify(FiniteStateAutomaton dfa, FactTrackingSystem<D> system) {
+    public static <D> VerificationReport<D> verify(FiniteStateAutomaton automaton, FactTrackingSystem<D> system) {
         Map<State, Set<D>> facts = new HashMap<>();
-        for (State state : dfa.getStates()) {
+        for (State state : automaton.getStates()) {
             facts.put(state, new HashSet<>());
         }
 
-        State start = dfa.getInitialState();
+        State start = automaton.getInitialState();
         facts.get(start).add(system.initialFact());
 
         Deque<State> worklist = new ArrayDeque<>();
@@ -33,14 +38,17 @@ public final class DfaFactVerifier {
 
         while (!worklist.isEmpty()) {
             State state = worklist.poll();
-            for (Transition transition : dfa.getTransitionsFromState(state)) {
+            for (Transition transition : automaton.getTransitionsFromState(state)) {
                 FSATransition fsaTransition = (FSATransition) transition;
-                char symbol = fsaTransition.getLabel().charAt(0);
+                String label = fsaTransition.getLabel();
                 State next = fsaTransition.getToState();
 
                 Set<D> newFacts = new HashSet<>();
                 for (D fact : facts.get(state)) {
-                    newFacts.add(system.transfer(fact, symbol));
+                    for (char symbol : label.toCharArray()) {
+                        fact = system.transfer(fact, symbol);
+                    }
+                    newFacts.add(fact);
                 }
 
                 if (facts.get(next).addAll(newFacts)) {
@@ -50,14 +58,14 @@ public final class DfaFactVerifier {
         }
 
         Map<State, StateDiagnosis> diagnoses = new HashMap<>();
-        for (State state : dfa.getStates()) {
-            diagnoses.put(state, classify(dfa, system, state, facts.get(state)));
+        for (State state : automaton.getStates()) {
+            diagnoses.put(state, classify(automaton, system, state, facts.get(state)));
         }
 
         return new VerificationReport<>(facts, diagnoses);
     }
 
-    private static <D> StateDiagnosis classify(FiniteStateAutomaton dfa, FactTrackingSystem<D> system, State state, Set<D> stateFacts) {
+    private static <D> StateDiagnosis classify(FiniteStateAutomaton automaton, FactTrackingSystem<D> system, State state, Set<D> stateFacts) {
         if (stateFacts.isEmpty()) {
             return StateDiagnosis.UNREACHABLE;
         }
@@ -76,7 +84,7 @@ public final class DfaFactVerifier {
             return StateDiagnosis.CONFLICTED;
         }
 
-        boolean isFinal = dfa.isFinalState(state);
+        boolean isFinal = automaton.isFinalState(state);
         if (hasAccepting && !isFinal) {
             return StateDiagnosis.MISSING_ACCEPTANCE;
         }

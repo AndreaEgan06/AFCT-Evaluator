@@ -1,6 +1,7 @@
-package afctevaluator.mosel.concrete_fact_systems;
+package afctevaluator.mosel.predicates.words;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.core.FactTrackingSystem;
+import afctevaluator.mosel.core.KmpTable;
 
 /** endWt w: the string ends with w. Fact is the KMP overlap value in [0, |w|]. */
 public final class SuffixFactSystem implements FactTrackingSystem<Integer> {

@@ -1,9 +1,13 @@
-package afctevaluator.mosel.abstract_fact_system;
+package afctevaluator.mosel.logic;
+
+import afctevaluator.mosel.core.FactTrackingSystem;
+import afctevaluator.mosel.core.Pair;
 
 /**
  * Combines two fact systems into one tracking the tuple of both facts, for a compound
- * condition C1 AND/OR C2. Implements the same interface it composes, so arbitrary trees of
- * AND/OR are built by nesting ProductFactSystem instances.
+ * condition C1 AND/OR/IMPLIES/IFF C2. Implements the same interface it composes, so arbitrary
+ * trees of these are built by nesting ProductFactSystem instances. NOT is unary and lives in
+ * {@link NegationFactSystem}.
  */
 public final class ProductFactSystem<D1, D2> implements FactTrackingSystem<Pair<D1, D2>> {
     private final FactTrackingSystem<D1> left;
@@ -11,6 +15,9 @@ public final class ProductFactSystem<D1, D2> implements FactTrackingSystem<Pair<
     private final BooleanOperator operator;
 
     public ProductFactSystem(FactTrackingSystem<D1> left, FactTrackingSystem<D2> right, BooleanOperator operator) {
+        if (operator == BooleanOperator.NOT) {
+            throw new IllegalArgumentException("NOT is unary; use NegationFactSystem");
+        }
         this.left = left;
         this.right = right;
         this.operator = operator;

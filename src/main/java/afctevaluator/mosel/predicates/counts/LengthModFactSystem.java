@@ -1,14 +1,17 @@
-package afctevaluator.mosel.concrete_fact_systems;
+package afctevaluator.mosel.predicates.counts;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.core.Comparison;
+import afctevaluator.mosel.core.FactTrackingSystem;
 
-/** |s| mod m = r. Every transition advances the fact by one, regardless of the symbol read. */
+/** |s| mod m CMP r. Every transition advances the fact by one, regardless of the symbol read. */
 public final class LengthModFactSystem implements FactTrackingSystem<Integer> {
     private final int m;
+    private final Comparison cmp;
     private final int r;
 
-    public LengthModFactSystem(int m, int r) {
+    public LengthModFactSystem(int m, Comparison cmp, int r) {
         this.m = m;
+        this.cmp = cmp;
         this.r = r;
     }
 
@@ -24,6 +27,6 @@ public final class LengthModFactSystem implements FactTrackingSystem<Integer> {
 
     @Override
     public boolean isAccepting(Integer fact) {
-        return fact == r;
+        return cmp.test(fact, r);
     }
 }

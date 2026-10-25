@@ -11,9 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.core.FactTrackingSystem;
 
-/** Builds the canonical correct DFA for a fact-tracking system's language over a given alphabet: one state per reachable fact, transitions by the transfer function, accepting states by the fact system's accept/reject classification. Dual to {@link DfaFactVerifier}, which goes the other direction (DFA -> facts -> diagnosis). */
+/** Builds the canonical correct DFA for a fact-tracking system's language over a given alphabet: one state per reachable fact, transitions by the transfer function, accepting states by the fact system's accept/reject classification. Dual to {@link FactVerifier}, which goes the other direction (DFA -> facts -> diagnosis). */
 public final class DfaFactConstructor {
     private DfaFactConstructor() {
     }

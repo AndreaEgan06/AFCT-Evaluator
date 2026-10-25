@@ -1,6 +1,6 @@
-package afctevaluator.mosel.concrete_fact_systems;
+package afctevaluator.mosel.predicates.words;
 
-import afctevaluator.mosel.abstract_fact_system.FactTrackingSystem;
+import afctevaluator.mosel.core.FactTrackingSystem;
 
 /** begWt w: the string begins with w. Fact is PRE_i (0 &lt;= i &lt;= |w|), or FAIL on deviation. */
 public final class PrefixFactSystem implements FactTrackingSystem<Integer> {

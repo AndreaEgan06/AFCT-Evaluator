@@ -30,6 +30,28 @@ which is what keeps older versions building and lets you work offline. Then buil
 * Change the current directory to `target` folder
 * Run `java -jar afct-evaluator.jar -h` for more details
 
+### MOSEL analysis and rubric scoring
+<!-- RUBRIC: documents the binary-only rubric in the grading config. -->
+`--grading-config <path>` (or `-` to read it from stdin) takes a JSON document
+`{ "mosel": ..., "rubric": ... }`, either key optional:
+
+```bash
+java -jar afct-evaluator.jar --json --grading-config config.json answer.jff submission.jff -1 false
+```
+
+* `mosel`: the target language as a MOSEL description, e.g.
+  `{ "condition": { "kind": "endWt", "w": "ab" } }` (format in
+  `afctevaluator.mosel.grading.MoselSpecParser`). For an FA problem the output gains `analysis`:
+  every state of the submission with its reachable facts and diagnosis (a DFA is first completed
+  with a trap state; an NFA is analysed as submitted, with λ-transitions passing facts on unchanged), the diagnosis counts, the minimal state count, and
+  `specMatchesAnswerKey`.
+* `rubric`: only `{ "version": 1, "kind": "binary" }` exists for now. The output gains `score`
+  (0 to 1) and `rubricApplied`.
+
+`correct` and `feedback` are never changed by either. A config that cannot be applied is reported
+in `errors`, and an unusable rubric falls back to `score = correct ? 1 : 0`. Without the flag the
+output is exactly as before.
+
 ## AFCT Client
 
 This repository contains the evaluator for AFCT.

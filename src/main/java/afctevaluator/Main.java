@@ -1,9 +1,14 @@
 package afctevaluator;
 
+import afctevaluator.mosel.grading.MoselGrader;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import gui.DisableGUI;
 
+import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -25,6 +30,7 @@ public class Main {
     private static int maxStates = -1;
     public static boolean deterministic = false;
     private static boolean outputJson = false;
+    private static String gradingConfigSource = null;
     public static Instant start;
     public static boolean testMode = false;
 
@@ -33,7 +39,7 @@ public class Main {
      */
     private static void showHelp() {
         String helpMessage = """
-                usage: afct-evaluator.jar [-h] [-v] [-j] answerFilePath submissionFilePath [maxStates] [deterministic]
+                usage: afct-evaluator.jar [-h] [-v] [-j] [--grading-config path] answerFilePath submissionFilePath [maxStates] [deterministic]
                                 
                 positional arguments:
                     answerFilePath          path to the file with the correct answer
@@ -47,6 +53,9 @@ public class Main {
                     -h, --help              show this help message and exit
                     -v, --version           show the afct evaluator version and exit
                     -j, --json              display output in JSON format
+                    --grading-config path   JSON file with { "mosel": ..., "rubric": ... } (either optional);
+                                            '-' reads it from stdin. Adds the MOSEL analysis (FA only) and the
+                                            rubric score to the output.
                 """;
         System.out.println(helpMessage);
     }
@@ -153,6 +162,16 @@ public class Main {
             Main.outputJson = true;
         }
 
+        int gradingConfigIndex = argList.indexOf("--grading-config");
+        if (gradingConfigIndex >= 0) {
+            if (gradingConfigIndex + 1 >= argList.size()) {
+                invalidCliArg("--grading-config needs a path (or '-' for stdin)", "--grading-config");
+            }
+            Main.gradingConfigSource = argList.get(gradingConfigIndex + 1);
+            argList.remove(gradingConfigIndex + 1);
+            argList.remove(gradingConfigIndex);
+        }
+
         if (argList.size() < 2) {
             System.out.print("error: not enough command line arguments: ");
             if (argList.isEmpty()) {
@@ -208,6 +227,28 @@ public class Main {
     }
 
     /**
+     * Adds the MOSEL analysis and the rubric score from --grading-config to the feedback. The verdict is already
+     * decided by this point and must survive anything that goes wrong here, so failures become errors entries.
+     * RUBRIC: the --grading-config entry point; the rubric travels in the config document.
+     *
+     * @param checkSubmission the checker that produced the feedback, used to decode the files again
+     * @param feedback the feedback to add to
+     */
+    private static void applyGradingConfig(CheckSubmission checkSubmission, Feedback feedback) {
+        try {
+            String text = Main.gradingConfigSource.equals("-")
+                    ? new String(System.in.readAllBytes(), StandardCharsets.UTF_8)
+                    : Files.readString(Path.of(Main.gradingConfigSource));
+            // Decode afresh: the equivalence check is free to modify the automata it was given.
+            Serializable answer = checkSubmission.readAndDecode(Main.answerFilePath);
+            Serializable submitted = checkSubmission.readAndDecode(Main.submissionFilePath);
+            MoselGrader.apply(feedback, MoselGrader.parseConfig(text), answer, submitted);
+        } catch (Exception e) {
+            feedback.errors.add("The grading config could not be applied: " + e.getMessage());
+        }
+    }
+
+    /**
      * The main entry point for the AFCT-Evaluator program. Prints feedback to System.out.
      *
      * @param args command line arguments
@@ -225,6 +266,9 @@ public class Main {
             String feedbackMessage = "An error occurred while checking your answer. Please try again. If this occurs repeatedly, please contact your professor.";
             String errorMessage = getStackTraceAsString(e);
             feedback = new Feedback(feedbackMessage, false, errorMessage);
+        }
+        if (Main.gradingConfigSource != null) {
+            applyGradingConfig(checkSubmission, feedback);
         }
         feedback.addWarningsAndErrors(checkSubmission.warnings, checkSubmission.errors);
         feedback.info.add("Total time taken: " + getTimeTaken() + " ms.");
@@ -244,6 +288,9 @@ public class Main {
         } else {
             System.out.println(feedback.correct);
             System.out.println(feedback.feedback);
+            if (feedback.score != null) {
+                System.out.println("Score: " + feedback.score);
+            }
 
             if (!feedback.warnings.isEmpty()) {
                 System.out.println("\nWarnings:");
