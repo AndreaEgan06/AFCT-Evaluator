@@ -19,7 +19,10 @@ public final class SumModFactSystem implements FactTrackingSystem<Integer> {
 
     @Override
     public Integer transfer(Integer fact, char symbol) {
-        return (fact + Character.getNumericValue(symbol)) % this.modulus;
+        if ('0' <= symbol && symbol <= '9') {
+            return (fact + (symbol - '0')) % this.modulus;
+        }
+        return fact;
     }
 
     @Override
