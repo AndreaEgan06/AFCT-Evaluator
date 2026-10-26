@@ -39,8 +39,8 @@ which is what keeps older versions building and lets you work offline. Then buil
 java -jar afct-evaluator.jar --json --grading-config config.json answer.jff submission.jff -1 false
 ```
 
-* `mosel`: the target language as a MOSEL description, e.g.
-  `{ "condition": { "kind": "endWt", "w": "ab" } }` (format in
+* `mosel`: the target language as a MOSEL description, an alphabet and a condition, e.g.
+  `{ "alphabet": ["a", "b"], "condition": { "kind": "endWt", "w": "ab" } }` (format in
   `afctevaluator.mosel.grading.MoselSpecParser`). For an FA problem the output gains `analysis`:
   every state of the submission with its reachable facts and diagnosis (a DFA is first completed
   with a trap state; an NFA is analysed as submitted, with λ-transitions passing facts on unchanged), the diagnosis counts, the minimal state count, and
@@ -51,6 +51,19 @@ java -jar afct-evaluator.jar --json --grading-config config.json answer.jff subm
 `correct` and `feedback` are never changed by either. A config that cannot be applied is reported
 in `errors`, and an unusable rubric falls back to `score = correct ? 1 : 0`. Without the flag the
 output is exactly as before.
+
+A description is a complete answer key, so it can replace the answer file. With
+`--answer-from-mosel`, leave out `answerFilePath`:
+
+```bash
+java -jar afct-evaluator.jar --json --grading-config config.json --answer-from-mosel submission.jff -1 false
+```
+
+The evaluator builds the DFA the description stands for (complete over the alphabet, one state per
+reachable fact) and runs the usual equivalence check against it, so `correct` and `feedback`,
+witness string included, are exactly what an answer file for the same language would give. A
+description that cannot be used is reported like a broken answer file: incorrect, with a message
+asking the student to contact their professor.
 
 ## AFCT Client
 

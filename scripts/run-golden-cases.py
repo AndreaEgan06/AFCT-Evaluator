@@ -18,6 +18,11 @@ Defaults to target/afct-evaluator.jar, so run `mvn clean verify` first.
 TO ADD A CASE: put the .jff files in test/golden/cases and add an entry to
 test/golden/manifest.json. `expectCorrect` is the verdict the evaluator must give.
 
+An FA case with `"answer": null` is graded against its grading config's MOSEL description
+(`--answer-from-mosel`) instead of an answer file. Give it `sameFeedbackAs`, an answer file
+for the same language, and the case also checks that the student sees exactly what that
+answer file would have shown them.
+
 These cases are also kept in the dashboard repository, where they guard the jar that ships
 there. The same cases in two places is deliberate: this copy guards the code, that one
 guards the jar, and neither repository has to reach into the other.
@@ -62,6 +67,12 @@ def grading_args(case):
     if "gradingConfig" not in case:
         return []
     return ["--grading-config", str(GRADING_CONFIGS / case["gradingConfig"])]
+
+
+def answer_args(case, answer=None):
+    """The answer file, or `--answer-from-mosel` for a case graded against its description."""
+    answer = answer if answer is not None else case["answer"]
+    return ["--answer-from-mosel"] if answer is None else [str(CASES / answer)]
 
 
 def subset_mismatches(expected, actual, path="analysis"):
@@ -130,8 +141,7 @@ def main():
     print(f"Evaluating {len(cases)} golden case(s) against {jar.relative_to(ROOT)}\n")
     failures = []
 
-    for case in cases:
-        name = case["name"]
+    def evaluate(case, answer=None):
         cmd = [
             "java",
             "-Djava.awt.headless=true",
@@ -141,15 +151,19 @@ def main():
             str(jar),
             "--json",
             *grading_args(case),
-            str(CASES / case["answer"]),
+            *answer_args(case, answer),
             str(CASES / case["submission"]),
             *type_args(case),
         ]
+        done = subprocess.run(
+            cmd, capture_output=True, text=True, env=env, timeout=TIMEOUT_SECONDS + 10
+        )
+        return parse_feedback(done.stdout)
+
+    for case in cases:
+        name = case["name"]
         try:
-            done = subprocess.run(
-                cmd, capture_output=True, text=True, env=env, timeout=TIMEOUT_SECONDS + 10
-            )
-            feedback = parse_feedback(done.stdout)
+            feedback = evaluate(case)
 
             if not isinstance(feedback.get("correct"), bool):
                 raise AssertionError(
@@ -173,6 +187,14 @@ def main():
                     continue
 
             problems = grading_mismatches(case, feedback)
+            if "sameFeedbackAs" in case:
+                reference = evaluate(case, case["sameFeedbackAs"])
+                for key in ("correct", "feedback"):
+                    if feedback.get(key) != reference.get(key):
+                        problems.append(
+                            f"{key} differs from grading against {case['sameFeedbackAs']}: "
+                            f"{feedback.get(key)!r} vs {reference.get(key)!r}"
+                        )
             if problems:
                 failures.append(f"{name}\n        " + "\n        ".join(problems))
                 print(f"  FAIL  {name}")

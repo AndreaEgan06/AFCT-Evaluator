@@ -7,15 +7,17 @@ import java.util.Map;
  * The MOSEL analysis of a submission, in the shape it is serialized into the evaluator's JSON output (as
  * {@code analysis}). Not shown to students; stored so it can be displayed or used by rubrics later.
  *
- * @param alphabet the symbols the analysis was run over: every symbol the answer file or the submission reads
+ * @param alphabet the symbols the analysis was run over: the description's alphabet, plus any symbol only the
+ *                 submission reads
  * @param specMatchesAnswerKey whether the answer file itself is fully consistent with the description; when false
- *                             the description and the answer file disagree, and the analysis should not be trusted
+ *                             the description and the answer file disagree (in language, or in the
+ *                             symbols they read), and the analysis should not be trusted
  * @param nondeterministic whether the submission was analysed as an NFA (nondeterminism, λ-transitions or
  *                         multi-symbol labels); its states are then diagnosed as submitted, without a trap state
  * @param trapAdded whether a trap state was added for missing transitions
  * @param submittedStates the number of states in the submission as handed in
  * @param analyzedStates the number of states that were analysed (the submitted ones, plus the trap state if added)
- * @param minimalStates the number of states in the minimal DFA for the description
+ * @param minimalStates the number of states in the minimal DFA for the description, over its alphabet
  * @param counts how many analysed states received each diagnosis
  * @param states one entry per analysed state
  */

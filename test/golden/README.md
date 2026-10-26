@@ -56,7 +56,18 @@ what comes back beyond the verdict:
 ```
 
 `expectAnalysis` only checks the keys it names; set it to `null` to assert that no analysis is
-returned. The `mosel-*` files in `cases/` are small hand-written automata for "ends with ab".
+returned. The `mosel-*` files in `cases/` are small hand-written automata for "ends with ab",
+"binary numbers divisible by 3", `0*1*` and "exactly a, ab and ba".
+
+A case with `"answer": null` is graded against its config's description instead of an answer
+file (`--answer-from-mosel`). Give it `"sameFeedbackAs"`, an answer file for the same language,
+and the runner grades the submission against that file too and checks that `correct` and
+`feedback` are identical: a student must not be able to tell which one the problem was given.
+Pick a wrong submission whose example string is forced (only one string, or one shortest string,
+tells it apart from the answer). The equivalence check picks its example by walking `HashSet`s of
+JFLAP states, whose hashes are identity hashes, so where several strings would do, which one comes
+out depends on the answer automaton's layout and can change from run to run, for answer files as
+much as for descriptions.
 
 Cases are worth adding whenever a grading bug is found: the case that reproduces it is the
 thing that stops it coming back.

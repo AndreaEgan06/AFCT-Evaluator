@@ -1,0 +1,3 @@
+{ "mosel": { "alphabet": ["a", "b"],
+             "condition": { "kind": "oneOf", "words": ["a", "ab", "ba"] } },
+  "rubric": { "version": 1, "kind": "binary" } }

@@ -29,6 +29,9 @@ import java.util.TreeSet;
  * The equivalence check stays authoritative: {@code correct} and the witness feedback are never changed here. This
  * only adds {@code analysis}, {@code score} and {@code rubricApplied}. Nothing in it may lose the verdict, so every
  * failure is recorded in {@code errors} and grading falls back to correct/incorrect.
+ * <p>
+ * The description can also stand in for the answer file ({@link #answerAutomaton}): the equivalence check then runs
+ * against the DFA built from it, exactly as it would against an answer file for the same language.
  */
 public final class MoselGrader {
     private MoselGrader() {
@@ -43,6 +46,24 @@ public final class MoselGrader {
         return parsed.getAsJsonObject();
     }
 
+    /** The config's MOSEL description, parsed; throws if there is none or it is not valid. */
+    public static MoselSpec spec(JsonObject config) {
+        JsonElement moselJson = present(config.get("mosel"));
+        if (moselJson == null) {
+            throw new IllegalArgumentException("the grading config has no MOSEL description");
+        }
+        return MoselSpecParser.parse(moselJson);
+    }
+
+    /**
+     * The answer key a description stands for: a complete DFA over its alphabet, one state per reachable fact. Every
+     * symbol labels a transition, so the equivalence check sees the description's alphabet, as it would see an
+     * answer file's. Build a fresh one for each use: the equivalence check may modify the automata it is given.
+     */
+    public static FiniteStateAutomaton answerAutomaton(MoselSpec spec) {
+        return DfaFactConstructor.build(spec.system(), spec.alphabet());
+    }
+
     public static void apply(Feedback feedback, JsonObject config, Serializable answer, Serializable submitted) {
         JsonElement moselJson = present(config.get("mosel"));
         JsonElement rubricJson = present(config.get("rubric"));
@@ -55,10 +76,7 @@ public final class MoselGrader {
                 feedback.info.add("MOSEL analysis skipped: the submission is not a finite automaton.");
             } else {
                 try {
-                    analysis = analyze(MoselSpecParser.parse(moselJson), answerFSA, submittedFSA);
-                    if (!analysis.specMatchesAnswerKey()) {
-                        feedback.warnings.add("The MOSEL description does not describe the same language as the answer file; the analysis may be misleading.");
-                    }
+                    analysis = analyze(MoselSpecParser.parse(moselJson), answerFSA, submittedFSA, feedback.warnings);
                 } catch (RuntimeException e) {
                     feedback.errors.add("MOSEL analysis failed: " + e.getMessage());
                 }
@@ -85,25 +103,36 @@ public final class MoselGrader {
     }
 
     /**
-     * The description has no alphabet, so the analysis runs over every symbol the answer file or the submission
-     * reads. The answer key alone is checked over its own symbols: a symbol only the submission uses says nothing
-     * about whether the description matches the answer file.
+     * The answer file matches the description when it reads exactly the description's alphabet (the equivalence
+     * check compares alphabets, so one that reads fewer or more symbols grades differently) and its language is the
+     * description's. The submission is analysed over the alphabet plus any symbols only it reads, so that a stray
+     * symbol is diagnosed rather than lost; the minimal state count is for the problem as posed, over the alphabet.
      */
-    static MoselAnalysis analyze(FactTrackingSystem<Object> system, FiniteStateAutomaton answer, FiniteStateAutomaton submitted) {
+    static MoselAnalysis analyze(MoselSpec spec, FiniteStateAutomaton answer, FiniteStateAutomaton submitted,
+                                 List<String> warnings) {
+        FactTrackingSystem<Object> system = spec.system();
         Set<Character> answerSymbols = AnalysisAutomatonBuilder.symbolsOf(answer);
-        Set<Character> alphabet = new TreeSet<>(answerSymbols);
+        boolean specMatchesAnswerKey;
+        if (!answerSymbols.equals(spec.alphabet())) {
+            specMatchesAnswerKey = false;
+            warnings.add("The answer file reads the symbols " + answerSymbols + " but the MOSEL description's alphabet is "
+                    + spec.alphabet() + "; the analysis may be misleading.");
+        } else {
+            // The answer key is checked as a whole language, so it is determinized: on an NFA, a correct state can
+            // still be diagnosed MISSING_ACCEPTANCE or CONFLICTED, since another path may accept the same string.
+            AnalysisAutomatonBuilder.Result answerDfa = AnalysisAutomatonBuilder.determinize(answer, spec.alphabet());
+            specMatchesAnswerKey = allReachableConsistent(FactVerifier.verify(answerDfa.automaton(), system));
+            if (!specMatchesAnswerKey) {
+                warnings.add("The MOSEL description does not describe the same language as the answer file; the analysis may be misleading.");
+            }
+        }
+
+        Set<Character> alphabet = new TreeSet<>(spec.alphabet());
         alphabet.addAll(AnalysisAutomatonBuilder.symbolsOf(submitted));
-
-        // The answer key is checked as a whole language, so it is determinized: on an NFA, a correct state can
-        // still be diagnosed MISSING_ACCEPTANCE or CONFLICTED, since another path may accept the same string.
-        AnalysisAutomatonBuilder.Result answerDfa = AnalysisAutomatonBuilder.determinize(answer, answerSymbols);
-        boolean specMatchesAnswerKey = allReachableConsistent(FactVerifier.verify(answerDfa.automaton(), system));
-
         AnalysisAutomatonBuilder.Result prepared = AnalysisAutomatonBuilder.build(submitted, alphabet);
         VerificationReport<Object> report = FactVerifier.verify(prepared.automaton(), system);
 
-        FiniteStateAutomaton reference = DfaFactConstructor.build(system, alphabet);
-        int minimalStates = DfaMinimizer.minimalStateCount(reference, alphabet);
+        int minimalStates = DfaMinimizer.minimalStateCount(answerAutomaton(spec), spec.alphabet());
 
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (StateDiagnosis diagnosis : StateDiagnosis.values()) {

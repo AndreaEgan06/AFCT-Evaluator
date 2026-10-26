@@ -15,6 +15,9 @@ import afctevaluator.mosel.core.FactTrackingSystem;
 
 /** Builds the canonical correct DFA for a fact-tracking system's language over a given alphabet: one state per reachable fact, transitions by the transfer function, accepting states by the fact system's accept/reject classification. Dual to {@link FactVerifier}, which goes the other direction (DFA -> facts -> diagnosis). */
 public final class DfaFactConstructor {
+    /** Upper bound on constructed states, so a description whose facts multiply out cannot exhaust the evaluator. */
+    public static final int MAX_STATES = 10_000;
+
     private DfaFactConstructor() {
     }
 
@@ -37,6 +40,10 @@ public final class DfaFactConstructor {
                 D nextFact = system.transfer(fact, symbol);
                 State nextState = states.get(nextFact);
                 if (nextState == null) {
+                    if (states.size() >= MAX_STATES) {
+                        throw new IllegalArgumentException("the description needs more than " + MAX_STATES
+                                + " states to track; simplify it");
+                    }
                     nextState = newState(dfa, states.size());
                     states.put(nextFact, nextState);
                     worklist.add(nextFact);

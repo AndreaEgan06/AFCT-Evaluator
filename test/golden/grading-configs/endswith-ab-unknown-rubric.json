@@ -1,2 +1,3 @@
-{ "mosel": { "condition": { "kind": "endWt", "w": "ab" } },
+{ "mosel": { "alphabet": ["a", "b"],
+             "condition": { "kind": "endWt", "w": "ab" } },
   "rubric": { "version": 1, "kind": "perState" } }

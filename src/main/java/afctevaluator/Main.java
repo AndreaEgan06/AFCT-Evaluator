@@ -3,8 +3,11 @@ package afctevaluator;
 import afctevaluator.mosel.grading.MoselGrader;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import file.DataException;
 import gui.DisableGUI;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,6 +34,7 @@ public class Main {
     public static boolean deterministic = false;
     private static boolean outputJson = false;
     private static String gradingConfigSource = null;
+    private static boolean answerFromMosel = false;
     public static Instant start;
     public static boolean testMode = false;
 
@@ -40,9 +44,10 @@ public class Main {
     private static void showHelp() {
         String helpMessage = """
                 usage: afct-evaluator.jar [-h] [-v] [-j] [--grading-config path] answerFilePath submissionFilePath [maxStates] [deterministic]
+                       afct-evaluator.jar [-h] [-v] [-j] --grading-config path --answer-from-mosel submissionFilePath [maxStates] [deterministic]
                                 
                 positional arguments:
-                    answerFilePath          path to the file with the correct answer
+                    answerFilePath          path to the file with the correct answer (left out with --answer-from-mosel)
                     submissionFilePath      path to the file submitted
                     
                 optional positional arguments:
@@ -56,6 +61,8 @@ public class Main {
                     --grading-config path   JSON file with { "mosel": ..., "rubric": ... } (either optional);
                                             '-' reads it from stdin. Adds the MOSEL analysis (FA only) and the
                                             rubric score to the output.
+                    --answer-from-mosel     grade an FA against the language of the grading config's MOSEL
+                                            description (over its alphabet) instead of an answer file
                 """;
         System.out.println(helpMessage);
     }
@@ -172,6 +179,16 @@ public class Main {
             argList.remove(gradingConfigIndex);
         }
 
+        if (argList.contains("--answer-from-mosel")) {
+            argList.removeAll(Collections.singleton("--answer-from-mosel"));
+            if (Main.gradingConfigSource == null) {
+                invalidCliArg("--answer-from-mosel needs --grading-config with a MOSEL description:", "--answer-from-mosel");
+            }
+            Main.answerFromMosel = true;
+            // Stands in for answerFilePath, so the positional arguments after it are where they always are.
+            argList.add(0, null);
+        }
+
         if (argList.size() < 2) {
             System.out.print("error: not enough command line arguments: ");
             if (argList.isEmpty()) {
@@ -226,23 +243,65 @@ public class Main {
         return "";
     }
 
+    /** Reads the --grading-config document; throws if it cannot be read or is not a JSON object. */
+    private static JsonObject readGradingConfig() throws IOException {
+        String text = Main.gradingConfigSource.equals("-")
+                ? new String(System.in.readAllBytes(), StandardCharsets.UTF_8)
+                : Files.readString(Path.of(Main.gradingConfigSource));
+        return MoselGrader.parseConfig(text);
+    }
+
+    /**
+     * The answer the submission is checked against: the answer file, or with --answer-from-mosel the DFA built from
+     * the config's MOSEL description. Each call gives a fresh one, since the equivalence check is free to modify the
+     * automata it was given.
+     */
+    private static Serializable answer(CheckSubmission checkSubmission, JsonObject gradingConfig) throws DataException {
+        return Main.answerFromMosel
+                ? MoselGrader.answerAutomaton(MoselGrader.spec(gradingConfig))
+                : checkSubmission.readAndDecode(Main.answerFilePath);
+    }
+
+    /**
+     * Checks the submission. With --answer-from-mosel there is no answer without a valid description, and that is
+     * the problem's fault rather than the student's, so it is reported the way a broken answer file is.
+     */
+    private static Feedback check(CheckSubmission checkSubmission, JsonObject gradingConfig, String gradingConfigError) {
+        if (!Main.answerFromMosel) {
+            return checkSubmission.isCorrect(Main.answerFilePath, Main.submissionFilePath, Main.maxStates, Main.deterministic);
+        }
+        Serializable answer;
+        try {
+            if (gradingConfigError != null) {
+                throw new IllegalArgumentException(gradingConfigError);
+            }
+            answer = answer(checkSubmission, gradingConfig);
+        } catch (Exception e) {
+            return Feedback.contactProfessorError("ERROR: the problem's MOSEL description could not be used as its answer: "
+                    + e.getMessage() + ".");
+        }
+        try {
+            Serializable submitted = checkSubmission.readAndDecode(Main.submissionFilePath);
+            return checkSubmission.isCorrect(answer, submitted, Main.maxStates, Main.deterministic);
+        } catch (DataException e) {
+            return new Feedback("Error: " + e.getMessage(), false, getStackTraceAsString(e));
+        }
+    }
+
     /**
      * Adds the MOSEL analysis and the rubric score from --grading-config to the feedback. The verdict is already
      * decided by this point and must survive anything that goes wrong here, so failures become errors entries.
      * RUBRIC: the --grading-config entry point; the rubric travels in the config document.
      *
      * @param checkSubmission the checker that produced the feedback, used to decode the files again
+     * @param gradingConfig the parsed config
      * @param feedback the feedback to add to
      */
-    private static void applyGradingConfig(CheckSubmission checkSubmission, Feedback feedback) {
+    private static void applyGradingConfig(CheckSubmission checkSubmission, JsonObject gradingConfig, Feedback feedback) {
         try {
-            String text = Main.gradingConfigSource.equals("-")
-                    ? new String(System.in.readAllBytes(), StandardCharsets.UTF_8)
-                    : Files.readString(Path.of(Main.gradingConfigSource));
-            // Decode afresh: the equivalence check is free to modify the automata it was given.
-            Serializable answer = checkSubmission.readAndDecode(Main.answerFilePath);
+            Serializable answer = answer(checkSubmission, gradingConfig);
             Serializable submitted = checkSubmission.readAndDecode(Main.submissionFilePath);
-            MoselGrader.apply(feedback, MoselGrader.parseConfig(text), answer, submitted);
+            MoselGrader.apply(feedback, gradingConfig, answer, submitted);
         } catch (Exception e) {
             feedback.errors.add("The grading config could not be applied: " + e.getMessage());
         }
@@ -259,16 +318,28 @@ public class Main {
         handleArgs(args);
         DisableGUI.allowGUI = false;
         CheckSubmission checkSubmission = new CheckSubmission();
+        // Read before checking: with --answer-from-mosel the config holds the answer.
+        JsonObject gradingConfig = null;
+        String gradingConfigError = null;
+        if (Main.gradingConfigSource != null) {
+            try {
+                gradingConfig = readGradingConfig();
+            } catch (Exception e) {
+                gradingConfigError = e.getMessage();
+            }
+        }
         Feedback feedback;
         try {
-            feedback = checkSubmission.isCorrect(Main.answerFilePath, Main.submissionFilePath, Main.maxStates, Main.deterministic);
+            feedback = check(checkSubmission, gradingConfig, gradingConfigError);
         } catch (Exception e) {
             String feedbackMessage = "An error occurred while checking your answer. Please try again. If this occurs repeatedly, please contact your professor.";
             String errorMessage = getStackTraceAsString(e);
             feedback = new Feedback(feedbackMessage, false, errorMessage);
         }
-        if (Main.gradingConfigSource != null) {
-            applyGradingConfig(checkSubmission, feedback);
+        if (gradingConfigError != null) {
+            feedback.errors.add("The grading config could not be applied: " + gradingConfigError);
+        } else if (gradingConfig != null) {
+            applyGradingConfig(checkSubmission, gradingConfig, feedback);
         }
         feedback.addWarningsAndErrors(checkSubmission.warnings, checkSubmission.errors);
         feedback.info.add("Total time taken: " + getTimeTaken() + " ms.");

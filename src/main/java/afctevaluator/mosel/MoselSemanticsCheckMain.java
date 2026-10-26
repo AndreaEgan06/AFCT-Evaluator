@@ -7,16 +7,19 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Standalone check, like {@link MoselVerifierTestMain}, that every leaf kind of the JSON form means what the paper's
  * semantics (Fig. 3) says it means: each fact system built by {@link MoselSpecParser} is run on every string up to a
- * length bound and compared with a direct evaluation of the condition on that string. Descriptions have no alphabet,
- * so each condition is also run on strings with a symbol it never mentions ('c', or a letter among digits).
+ * length bound and compared with a direct evaluation of the condition on that string. The alphabet each check runs
+ * over is the description's alphabet, and is wider than the condition needs, so each condition is also run on strings
+ * with a symbol it never mentions ('c', or a letter among digits).
  * Not wired into {@code Main}.
  */
 public final class MoselSemanticsCheckMain {
@@ -57,6 +60,9 @@ public final class MoselSemanticsCheckMain {
             conditions.add(leaf("begWt", "\"w\":\"" + w + "\""));
             conditions.add(leaf("endWt", "\"w\":\"" + w + "\""));
         }
+        for (String words : new String[]{"\"ab\"", "\"\"", "\"\",\"a\",\"ab\",\"ba\"", "\"aba\",\"ab\",\"b\",\"bbab\""}) {
+            conditions.add(leaf("oneOf", "\"words\":[" + words + "]"));
+        }
         for (int k = 0; k <= 4; k++) {
             conditions.add(leaf("symbolFromStart", "\"a\":\"a\",\"k\":" + k));
             conditions.add(leaf("symbolFromEnd", "\"a\":\"b\",\"k\":" + k));
@@ -94,9 +100,14 @@ public final class MoselSemanticsCheckMain {
         }
         for (String cmp : cmps) {
             failures += check(List.of('0', '1', '2', 'a'), MAX_LENGTH_WIDE, leaf("sumMod", "\"m\":3,\"cmp\":\"" + cmp + "\",\"r\":1"));
+            failures += check(List.of('0', '1', '2', 'a'), MAX_LENGTH_WIDE,
+                    leaf("valueMod", "\"base\":2,\"m\":3,\"cmp\":\"" + cmp + "\",\"r\":1"));
+            failures += check(List.of('0', '7', 'b', 'F', 'x'), MAX_LENGTH_WIDE,
+                    leaf("valueMod", "\"base\":16,\"m\":7,\"cmp\":\"" + cmp + "\",\"r\":4"));
         }
-        System.out.println(conditions.size() + cmps.length + " conditions checked on every string up to length "
-                + MAX_LENGTH + " over {a, b} and " + MAX_LENGTH_WIDE + " over {a, b, c} (sumMod: {0, 1, 2, a}): "
+        System.out.println(conditions.size() + 3 * cmps.length + " conditions checked on every string up to length "
+                + MAX_LENGTH + " over {a, b} and " + MAX_LENGTH_WIDE + " over {a, b, c} (sumMod: {0, 1, 2, a}; valueMod: "
+                + "{0, 1, 2, a} in base 2 and {0, 7, b, F, x} in base 16): "
                 + (failures == 0 ? "PASS" : failures + " FAILED"));
         if (failures > 0) {
             System.exit(1);
@@ -113,8 +124,10 @@ public final class MoselSemanticsCheckMain {
 
     @SuppressWarnings("unchecked")
     private static int check(List<Character> alphabet, int maxLength, String conditionJson) {
-        JsonObject spec = JsonParser.parseString("{\"condition\":" + conditionJson + "}").getAsJsonObject();
-        FactTrackingSystem<Object> system = MoselSpecParser.parse(spec);
+        String alphabetJson = alphabet.stream().map(symbol -> "\"" + symbol + "\"").collect(Collectors.joining(","));
+        JsonObject spec = JsonParser.parseString("{\"alphabet\":[" + alphabetJson + "],\"condition\":" + conditionJson + "}")
+                .getAsJsonObject();
+        FactTrackingSystem<Object> system = MoselSpecParser.parse(spec).system();
         Set<Object> facts = new java.util.HashSet<>();
         List<String> strings = new ArrayList<>();
         strings.add("");
@@ -163,10 +176,24 @@ public final class MoselSemanticsCheckMain {
             case "isEmpty" -> n == 0;
             case "begWt" -> s.startsWith(str(node, "w"));
             case "endWt" -> s.endsWith(str(node, "w"));
+            case "oneOf" -> {
+                boolean listed = false;
+                for (JsonElement w : node.getAsJsonArray("words")) {
+                    listed |= w.getAsString().equals(s);
+                }
+                yield listed;
+            }
             case "count" -> cmp(node, occurrences(s, str(node, "w")).size(), num(node, "n"));
             case "countMod" -> cmp(node, occurrences(s, str(node, "w")).size() % num(node, "m"), num(node, "r"));
             case "length" -> cmp(node, n, num(node, "n"));
             case "lengthMod" -> cmp(node, n % num(node, "m"), num(node, "r"));
+            case "valueMod" -> {
+                // An independent oracle: keep the base-b digits and let BigInteger read the number.
+                int base = num(node, "base");
+                StringBuilder digits = new StringBuilder("0");
+                s.chars().filter(c -> c < 128 && Character.digit(c, base) >= 0).forEach(c -> digits.append((char) c));
+                yield cmp(node, new BigInteger(digits.toString(), base).mod(BigInteger.valueOf(num(node, "m"))).intValue(), num(node, "r"));
+            }
             case "sumMod" -> cmp(node, s.chars().filter(c -> '0' <= c && c <= '9').map(c -> c - '0').sum() % num(node, "m"), num(node, "r"));
             case "symbolFromStart" -> symbolAt(s, 1 + num(node, "k"), str(node, "a").charAt(0));
             case "symbolFromEnd" -> symbolAt(s, n - num(node, "k"), str(node, "a").charAt(0));

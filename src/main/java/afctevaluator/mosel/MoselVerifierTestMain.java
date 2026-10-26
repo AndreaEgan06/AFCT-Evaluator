@@ -10,6 +10,7 @@ import afctevaluator.mosel.predicates.counts.LengthCompareFactSystem;
 import afctevaluator.mosel.predicates.counts.LengthModFactSystem;
 import afctevaluator.mosel.predicates.counts.ModularCountFactSystem;
 import afctevaluator.mosel.predicates.counts.SumModFactSystem;
+import afctevaluator.mosel.predicates.counts.ValueModFactSystem;
 import afctevaluator.mosel.predicates.positions.Position;
 import afctevaluator.mosel.predicates.positions.PositionCompareFactSystem;
 import afctevaluator.mosel.predicates.positions.PositionRange;
@@ -18,6 +19,7 @@ import afctevaluator.mosel.predicates.positions.SymbolOnRangeFactSystem;
 import afctevaluator.mosel.predicates.symbols.PeriodicSymbolFactSystem;
 import afctevaluator.mosel.predicates.symbols.SymbolFromEndFactSystem;
 import afctevaluator.mosel.predicates.symbols.SymbolFromStartFactSystem;
+import afctevaluator.mosel.predicates.words.OneOfFactSystem;
 import afctevaluator.mosel.predicates.words.PrefixFactSystem;
 import afctevaluator.mosel.predicates.words.SuffixFactSystem;
 import afctevaluator.mosel.analysis.DfaFactConstructor;
@@ -29,6 +31,7 @@ import automata.fsa.FSATransition;
 import automata.fsa.FiniteStateAutomaton;
 
 import java.awt.Point;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -95,6 +98,37 @@ public final class MoselVerifierTestMain {
             )
         );
 
+        runCase("Binary number divisible by 3: correct DFA and fully consistent",
+            binaryModThreeDfa(false),
+            new ValueModFactSystem(2, 3, Comparison.EQ, 0),
+            Map.of()
+        );
+
+        runCase("Binary number divisible by 3: symbols that are not binary digits looping on every state change nothing",
+            withSelfLoops(withSelfLoops(binaryModThreeDfa(false), "x"), "2"),
+            new ValueModFactSystem(2, 3, Comparison.EQ, 0),
+            Map.of()
+        );
+
+        runCase("Binary number divisible by 3: a DFA for the digit sum instead is fully conflicted",
+            binaryModThreeDfa(true),
+            new ValueModFactSystem(2, 3, Comparison.EQ, 0),
+            Map.of("r0", StateDiagnosis.CONFLICTED,
+                "r1", StateDiagnosis.CONFLICTED,
+                "r2", StateDiagnosis.CONFLICTED
+            )
+        );
+
+        runCase("oneOf('a', 'ab', 'ba'): correct DFA, with 'ab' and 'ba' sharing a state, is fully consistent",
+                oneOfDfa(false), new OneOfFactSystem(List.of("a", "ab", "ba")), Map.of());
+
+        runCase("oneOf('a', 'ab', 'ba'): the last state loops instead of going to the dead state, so it is conflicted",
+                oneOfDfa(true), new OneOfFactSystem(List.of("a", "ab", "ba")), Map.of("done", StateDiagnosis.CONFLICTED));
+
+        runCase("oneOf('', 'a', 'ab', 'ba'): the empty word is listed, so the start state must accept",
+                oneOfDfa(false), new OneOfFactSystem(List.of("", "a", "ab", "ba")),
+                Map.of("q0", StateDiagnosis.MISSING_ACCEPTANCE));
+
         runCase("NFA, begWt 'ab': a multi-symbol label and a λ-transition carry facts, fully consistent",
                 prefixLambdaNfa(false), new PrefixFactSystem("ab"), Map.of());
 
@@ -123,6 +157,11 @@ public final class MoselVerifierTestMain {
         Set<Character> _012 = Set.of('0', '1', '2');
         runConstructionCase("Construct: sum % 0 mod 4", new SumModFactSystem(4, Comparison.EQ, 0), _012);
         runConstructionCase("Construct: sum % 0 mod 4, with a non-digit", new SumModFactSystem(4, Comparison.EQ, 0), Set.of('0', '1', '2', 'x'));
+        runConstructionCase("Construct: binary value mod 3 = 0", new ValueModFactSystem(2, 3, Comparison.EQ, 0), Set.of('0', '1'));
+        runConstructionCase("Construct: hexadecimal value mod 5 = 2, with a non-digit",
+                new ValueModFactSystem(16, 5, Comparison.EQ, 2), Set.of('0', '7', 'f', 'x'));
+        runConstructionCase("Construct: oneOf('', 'a', 'ab', 'ba', 'bab')",
+                new OneOfFactSystem(List.of("", "a", "ab", "ba", "bab")), ab);
         runConstructionCase("Construct: |s| % 3 != 0", new LengthModFactSystem(3, Comparison.NE, 0), ab);
         runConstructionCase("Construct: |s| >= 3", new LengthCompareFactSystem(Comparison.GE, 3), ab);
         runConstructionCase("Construct: a@(fst + 2)", new SymbolFromStartFactSystem('a', 2), ab);
@@ -257,6 +296,34 @@ public final class MoselVerifierTestMain {
         return nfa;
     }
 
+    /**
+     * oneOf('a', 'ab', 'ba'): q0 --a--> qa (accepting) --b--> done, q0 --b--> qb --a--> done, with done accepting and every
+     * other move going to fail. {@code loopAtEnd} sends done back to itself instead, so it also accepts 'abb', 'baa', ...
+     */
+    private static FiniteStateAutomaton oneOfDfa(boolean loopAtEnd) {
+        FiniteStateAutomaton dfa = new FiniteStateAutomaton();
+        State q0 = newState(dfa, "q0", 0, 0);
+        State qa = newState(dfa, "qa", 100, 0);
+        State qb = newState(dfa, "qb", 100, 100);
+        State done = newState(dfa, "done", 200, 50);
+        State fail = newState(dfa, "fail", 200, 150);
+        dfa.setInitialState(q0);
+        dfa.addFinalState(qa);
+        dfa.addFinalState(done);
+        dfa.addTransition(new FSATransition(q0, qa, "a"));
+        dfa.addTransition(new FSATransition(q0, qb, "b"));
+        dfa.addTransition(new FSATransition(qa, fail, "a"));
+        dfa.addTransition(new FSATransition(qa, done, "b"));
+        dfa.addTransition(new FSATransition(qb, done, "a"));
+        dfa.addTransition(new FSATransition(qb, fail, "b"));
+        State after = loopAtEnd ? done : fail;
+        dfa.addTransition(new FSATransition(done, after, "a"));
+        dfa.addTransition(new FSATransition(done, after, "b"));
+        dfa.addTransition(new FSATransition(fail, fail, "a"));
+        dfa.addTransition(new FSATransition(fail, fail, "b"));
+        return dfa;
+    }
+
     private static FiniteStateAutomaton countExactlyConflatedDfa() {
         FiniteStateAutomaton dfa = new FiniteStateAutomaton();
         State q0 = newState(dfa, "q0", 0, 0);
@@ -309,6 +376,21 @@ public final class MoselVerifierTestMain {
         dfa.addTransition(new FSATransition(q1, q3, "2"));
         dfa.addTransition(new FSATransition(q2, q0, "2"));
         dfa.addTransition(new FSATransition(q3, q1, "2"));
+        return dfa;
+    }
+
+    /** Reads binary numbers, keeping the value mod 3 ({@code digitSum}: the number of 1s mod 3, the usual mistake). */
+    private static FiniteStateAutomaton binaryModThreeDfa(boolean digitSum) {
+        FiniteStateAutomaton dfa = new FiniteStateAutomaton();
+        State[] r = {newState(dfa, "r0", 0, 0), newState(dfa, "r1", 100, 0), newState(dfa, "r2", 200, 0)};
+        dfa.setInitialState(r[0]);
+        dfa.addFinalState(r[0]);
+        for (int i = 0; i < 3; i++) {
+            for (int digit = 0; digit < 2; digit++) {
+                int next = digitSum ? (i + digit) % 3 : (2 * i + digit) % 3;
+                dfa.addTransition(new FSATransition(r[i], r[next], String.valueOf(digit)));
+            }
+        }
         return dfa;
     }
 

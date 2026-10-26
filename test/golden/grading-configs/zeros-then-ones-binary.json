@@ -1,0 +1,3 @@
+{ "mosel": { "alphabet": ["0", "1"],
+             "condition": { "kind": "count", "w": "10", "cmp": "=", "n": 0 } },
+  "rubric": { "version": 1, "kind": "binary" } }

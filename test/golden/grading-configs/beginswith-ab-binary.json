@@ -1,2 +1,3 @@
-{ "mosel": { "condition": { "kind": "begWt", "w": "ab" } },
+{ "mosel": { "alphabet": ["a", "b"],
+             "condition": { "kind": "begWt", "w": "ab" } },
   "rubric": { "version": 1, "kind": "binary" } }
